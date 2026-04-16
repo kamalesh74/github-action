@@ -1,0 +1,175 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION       = "us-east-2"                                               // Change to your AWS region
+        AWS_ACCOUNT_ID   = "382458445256"                                            // Change to your AWS Account ID
+        ECR_REPO_NAME    = "pipeline"                                                // ECR repository name
+        ECR_REGISTRY     = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        IMAGE_NAME       = "${ECR_REGISTRY}/${ECR_REPO_NAME}"
+        DOCKER_TAG       = "${BUILD_NUMBER}"
+        AWS_CRED         = "aws-credentials-id"                              // Jenkins AWS credential ID
+        EKS_CLUSTER_NAME = "my-eks-cluster"                                 // Cluster name
+        K8S_NAMESPACE    = "default"
+    }
+
+    tools {
+        maven 'Maven-3.9'    // Must match Jenkins Global Tool Configuration name
+        jdk   'JDK-17'       // Must match Jenkins Global Tool Configuration name
+    }
+
+    triggers {
+        pollSCM('H/5 * * * *')   // Poll GitHub every 5 minutes
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo "Checking out from GitHub..."
+                git branch: 'main',
+                    url: 'https://github.com/kamalesh-parthiban/pipeline.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo "Building JAR using Maven..."
+                sh 'mvn clean package -DskipTests'
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo "Running unit tests..."
+                sh 'mvn test'
+            }
+            post {
+                always {
+                    junit 'target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                echo "Building Docker image..."
+                sh """
+                    docker build -t ${IMAGE_NAME}:${DOCKER_TAG} .
+                    docker tag ${IMAGE_NAME}:${DOCKER_TAG} ${IMAGE_NAME}:latest
+                """
+            }
+        }
+
+        stage('Push to ECR') {
+            steps {
+                echo "Pushing image to ECR..."
+                withCredentials([[                                    // open the credentials block
+                    $class: 'AmazonWebServicesCredentialsBinding',   // tell Jenkins this is AWS type credential
+                    credentialsId: "${AWS_CRED}",                    // which credential to use (your Jenkins credential ID)
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',         // store Access Key in this variable
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'    // store Secret Key in this variable
+                ]]) {
+                    sh """
+                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                        export AWS_DEFAULT_REGION=${AWS_REGION}
+
+                        aws ecr get-login-password --region ${AWS_REGION} | \
+                            docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+                        aws ecr describe-repositories \
+                            --repository-names ${ECR_REPO_NAME} \
+                            --region ${AWS_REGION} || \
+                            aws ecr create-repository \
+                            --repository-name ${ECR_REPO_NAME} \
+                            --region ${AWS_REGION}
+
+                        docker push ${IMAGE_NAME}:${DOCKER_TAG}
+                        docker push ${IMAGE_NAME}:latest
+                    """
+                }
+            }
+        }
+
+        stage('Update Kubeconfig') {
+            steps {
+                echo "Connecting to EKS cluster..."
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${AWS_CRED}",
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
+                    sh """
+                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                        export AWS_DEFAULT_REGION=${AWS_REGION}
+
+                        aws eks update-kubeconfig \
+                            --region ${AWS_REGION} \
+                            --name ${EKS_CLUSTER_NAME}
+
+                        kubectl get nodes
+                    """
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                echo "Deploying to EKS..."
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${AWS_CRED}",
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
+                    sh """
+                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                        export AWS_DEFAULT_REGION=${AWS_REGION}
+
+                        sed -i 's|IMAGE_PLACEHOLDER|${IMAGE_NAME}:${DOCKER_TAG}|g' \
+                            Deployment.yaml
+
+                        kubectl apply -f Deployment.yaml \
+                            --namespace=${K8S_NAMESPACE}
+
+                        kubectl rollout status deployment/pipeline \
+                            --namespace=${K8S_NAMESPACE} \
+                            --timeout=120s
+
+                        kubectl get pods -n ${K8S_NAMESPACE}
+
+                        kubectl get svc pipeline-service -n ${K8S_NAMESPACE}
+                    """
+                }
+            }
+        }
+
+    }
+
+    post {
+        success {
+            echo "Build #${BUILD_NUMBER} deployed to EKS successfully!"
+            echo "Image: ${IMAGE_NAME}:${DOCKER_TAG}"
+        }
+        failure {
+            echo "Build #${BUILD_NUMBER} failed. Check the logs."
+        }
+        always {
+            sh """
+                docker rmi ${IMAGE_NAME}:${DOCKER_TAG} || true
+                docker rmi ${IMAGE_NAME}:latest || true
+            """
+            cleanWs()
+        }
+    }
+
+}
