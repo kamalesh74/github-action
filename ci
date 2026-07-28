@@ -1,175 +1,128 @@
-pipeline {
-    agent any
+name: CI/CD Pipeline - Build and Deploy to EKS
 
-    environment {
-        AWS_REGION       = "us-east-2"                                               // Change to your AWS region
-        AWS_ACCOUNT_ID   = "382458445256"                                            // Change to your AWS Account ID
-        ECR_REPO_NAME    = "pipeline"                                                // ECR repository name
-        ECR_REGISTRY     = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        IMAGE_NAME       = "${ECR_REGISTRY}/${ECR_REPO_NAME}"
-        DOCKER_TAG       = "${BUILD_NUMBER}"
-        AWS_CRED         = "aws-credentials-id"                              // Jenkins AWS credential ID
-        EKS_CLUSTER_NAME = "my-eks-cluster"                                 // Cluster name
-        K8S_NAMESPACE    = "default"
-    }
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
-    tools {
-        maven 'Maven-3.9'    // Must match Jenkins Global Tool Configuration name
-        jdk   'JDK-17'       // Must match Jenkins Global Tool Configuration name
-    }
+env:
+  AWS_REGION:       us-east-2
+  AWS_ACCOUNT_ID:   382458445256
+  ECR_REPO_NAME:    pipeline
+  ECR_REGISTRY:     382458445256.dkr.ecr.us-east-2.amazonaws.com
+  IMAGE_NAME:       382458445256.dkr.ecr.us-east-2.amazonaws.com/pipeline
+  EKS_CLUSTER_NAME: my-eks-cluster
+  K8S_NAMESPACE:    default
 
-    triggers {
-        pollSCM('H/5 * * * *')   // Poll GitHub every 5 minutes
-    }
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
 
-    stages {
+    steps:
 
-        stage('Checkout') {
-            steps {
-                echo "Checking out from GitHub..."
-                git branch: 'main',
-                    url: 'https://github.com/kamalesh-parthiban/pipeline.git'
-            }
-        }
+      # ─── Checkout ───────────────────────────────────────────────
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-        stage('Build') {
-            steps {
-                echo "Building JAR using Maven..."
-                sh 'mvn clean package -DskipTests'
-            }
-            post {
-                success {
-                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
-                }
-            }
-        }
+      # ─── Java & Maven Setup ─────────────────────────────────────
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
 
-        stage('Test') {
-            steps {
-                echo "Running unit tests..."
-                sh 'mvn test'
-            }
-            post {
-                always {
-                    junit 'target/surefire-reports/*.xml'
-                }
-            }
-        }
+      # ─── Build ──────────────────────────────────────────────────
+      - name: Build JAR using Maven
+        run: mvn clean package -DskipTests
 
-        stage('Docker Build') {
-            steps {
-                echo "Building Docker image..."
-                sh """
-                    docker build -t ${IMAGE_NAME}:${DOCKER_TAG} .
-                    docker tag ${IMAGE_NAME}:${DOCKER_TAG} ${IMAGE_NAME}:latest
-                """
-            }
-        }
+      - name: Archive JAR Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
 
-        stage('Push to ECR') {
-            steps {
-                echo "Pushing image to ECR..."
-                withCredentials([[                                    // open the credentials block
-                    $class: 'AmazonWebServicesCredentialsBinding',   // tell Jenkins this is AWS type credential
-                    credentialsId: "${AWS_CRED}",                    // which credential to use (your Jenkins credential ID)
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',         // store Access Key in this variable
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'    // store Secret Key in this variable
-                ]]) {
-                    sh """
-                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                        export AWS_DEFAULT_REGION=${AWS_REGION}
+      # ─── Test ───────────────────────────────────────────────────
+      - name: Run Unit Tests
+        run: mvn test
 
-                        aws ecr get-login-password --region ${AWS_REGION} | \
-                            docker login --username AWS --password-stdin ${ECR_REGISTRY}
+      - name: Publish Test Results
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: target/surefire-reports/*.xml
 
-                        aws ecr describe-repositories \
-                            --repository-names ${ECR_REPO_NAME} \
-                            --region ${AWS_REGION} || \
-                            aws ecr create-repository \
-                            --repository-name ${ECR_REPO_NAME} \
-                            --region ${AWS_REGION}
+      # ─── AWS Credentials ────────────────────────────────────────
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
 
-                        docker push ${IMAGE_NAME}:${DOCKER_TAG}
-                        docker push ${IMAGE_NAME}:latest
-                    """
-                }
-            }
-        }
+      # ─── Docker Build ───────────────────────────────────────────
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:${{ github.run_number }} .
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.run_number }} ${{ env.IMAGE_NAME }}:latest
 
-        stage('Update Kubeconfig') {
-            steps {
-                echo "Connecting to EKS cluster..."
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: "${AWS_CRED}",
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
-                    sh """
-                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                        export AWS_DEFAULT_REGION=${AWS_REGION}
+      # ─── Push to ECR ────────────────────────────────────────────
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-                        aws eks update-kubeconfig \
-                            --region ${AWS_REGION} \
-                            --name ${EKS_CLUSTER_NAME}
+      - name: Create ECR Repository if not exists
+        run: |
+          aws ecr describe-repositories \
+            --repository-names ${{ env.ECR_REPO_NAME }} \
+            --region ${{ env.AWS_REGION }} || \
+          aws ecr create-repository \
+            --repository-name ${{ env.ECR_REPO_NAME }} \
+            --region ${{ env.AWS_REGION }}
 
-                        kubectl get nodes
-                    """
-                }
-            }
-        }
+      - name: Push Image to ECR
+        run: |
+          docker push ${{ env.IMAGE_NAME }}:${{ github.run_number }}
+          docker push ${{ env.IMAGE_NAME }}:latest
 
-        stage('Deploy to EKS') {
-            steps {
-                echo "Deploying to EKS..."
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: "${AWS_CRED}",
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
-                    sh """
-                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                        export AWS_DEFAULT_REGION=${AWS_REGION}
+      # ─── Update Kubeconfig ──────────────────────────────────────
+      - name: Update Kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ env.AWS_REGION }} \
+            --name ${{ env.EKS_CLUSTER_NAME }}
+          kubectl get nodes
 
-                        sed -i 's|IMAGE_PLACEHOLDER|${IMAGE_NAME}:${DOCKER_TAG}|g' \
-                            Deployment.yaml
+      # ─── Deploy to EKS ──────────────────────────────────────────
+      - name: Deploy to EKS
+        run: |
+          sed -i 's|IMAGE_PLACEHOLDER|${{ env.IMAGE_NAME }}:${{ github.run_number }}|g' \
+            Deployment.yaml
 
-                        kubectl apply -f Deployment.yaml \
-                            --namespace=${K8S_NAMESPACE}
+          kubectl apply -f Deployment.yaml \
+            --namespace=${{ env.K8S_NAMESPACE }}
 
-                        kubectl rollout status deployment/pipeline \
-                            --namespace=${K8S_NAMESPACE} \
-                            --timeout=120s
+          kubectl rollout status deployment/pipeline \
+            --namespace=${{ env.K8S_NAMESPACE }} \
+            --timeout=120s
 
-                        kubectl get pods -n ${K8S_NAMESPACE}
+          kubectl get pods -n ${{ env.K8S_NAMESPACE }}
+          kubectl get svc pipeline-service -n ${{ env.K8S_NAMESPACE }}
 
-                        kubectl get svc pipeline-service -n ${K8S_NAMESPACE}
-                    """
-                }
-            }
-        }
+      # ─── Cleanup ────────────────────────────────────────────────
+      - name: Cleanup Docker Images
+        if: always()
+        run: |
+          docker rmi ${{ env.IMAGE_NAME }}:${{ github.run_number }} || true
+          docker rmi ${{ env.IMAGE_NAME }}:latest || true
 
-    }
+      # ─── Notifications ──────────────────────────────────────────
+      - name: Success Message
+        if: success()
+        run: |
+          echo "Build #${{ github.run_number }} deployed to EKS successfully!"
+          echo "Image: ${{ env.IMAGE_NAME }}:${{ github.run_number }}"
 
-    post {
-        success {
-            echo "Build #${BUILD_NUMBER} deployed to EKS successfully!"
-            echo "Image: ${IMAGE_NAME}:${DOCKER_TAG}"
-        }
-        failure {
-            echo "Build #${BUILD_NUMBER} failed. Check the logs."
-        }
-        always {
-            sh """
-                docker rmi ${IMAGE_NAME}:${DOCKER_TAG} || true
-                docker rmi ${IMAGE_NAME}:latest || true
-            """
-            cleanWs()
-        }
-    }
-
-}
+      - name: Failure Message
+        if: failure()
+        run: echo "Build #${{ github.run_number }} failed. Check the logs."
