@@ -1,0 +1,79 @@
+No — a personal GitHub account doesn't have user/role management at all. That feature only exists at the Organization level.
+
+What you can do on a personal account:
+
+• Add Collaborators to individual repos (Repo → Settings → Collaborators → Add people)
+
+• Collaborators get simple permission levels per repo: Read, Triage, Write, Maintain, Admin (same list as before)
+
+• That's it — no teams, no org-wide roles, no centralized member management
+
+What you can't do:
+
+• No "invite member to account" concept
+• No Owner/Member split
+• No Teams
+• No org-wide 2FA enforcement policy
+• No SSO/SAML enforcement
+
+------------------------------
+lets crete free tier org 
+
+Step 1 — Create the organization
+
+1. Go to https://github.com/organizations/new
+2. Choose Free plan
+3. Organization name (e.g. devops-practice-org) — this becomes the URL:
+   github.com/your-org-name
+4. Contact email → This organization belongs to: pick "My personal account"
+5. Skip the "invite members" screen for now (add them later) → Complete setup
+
+You're now the Owner automatically.
+
+Step 2 — Invite members (Member role)
+
+1. Org page → People tab → Invite member
+2. Enter their GitHub username or email
+3. They get an invite email/notification → once accepted, they're a Member
+(If you're testing solo, you can create a second free GitHub account with a different email just to practice inviting/accepting.)
+
+Step 3 — Create some repos in the org
+
+1. Org page → Repositories tab → New
+2. Create 2–3 test repos, e.g. app-frontend, app-backend, infra-scripts
+
+Step 4 — Create Teams
+
+1. Org page → Teams tab → New team
+2. Name it, e.g. developers
+3. Add members to this team
+4. Repeat for other teams — e.g. qa, release-managers
+
+Step 5 — Give each team repo-level permission
+
+1. Go into a Team → Repositories tab → Add repository
+2. Select the repo, then set the permission level: Read / Triage / Write / Maintain / Admin
+3. Do this per team per repo — e.g.:
+   • developers → Write on app-frontend, app-backend
+   • qa → Triage on all three
+   • release-managers → Maintain on infra-scripts
+
+
+Step 6 (optional) — Base permissions
+Org → Settings → Member privileges → set a Base permission (e.g. Read) that applies to all members on all repos by default, before team-specific overrides kick in.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(If you're testing solo, you can create a second free GitHub account with a different email just to practice inviting/accepting.)
