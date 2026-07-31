@@ -34,6 +34,28 @@ Step 2 — Invite members (Member role)
 
 1. Org page → People tab → Invite member
 2. Enter their GitHub username or email
+
+Invite kamaleshparthiban28@gmail.com to devops-orgze4
+
+Give them an appropriate role in the organization and add them to some teams to give access to repositories.
+
+Role in the organization
+
+( ) Member
+Members can see all other members, and can be granted access to repositories. They can also create new teams and repositories.
+
+( ) Owner
+Owners have full administrative rights to the organization and have complete access to all repositories and teams.
+
+[ Send invitation ]
+---------------
+Keep Member selected (not Owner) — this matches the setup we discussed. Member gets base org access but no admin control over the whole org.
+
+Click Send invitation
+
+------------------
+
+
 3. They get an invite email/notification → once accepted, they're a Member
 (If you're testing solo, you can create a second free GitHub account with a different email just to practice inviting/accepting.)
 
