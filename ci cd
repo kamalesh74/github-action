@@ -218,3 +218,16 @@ NOT included — must install yourself:
 • helm
 • eksctl
 • Any niche/custom binaries
+-------------------------------
+
+This triggers on any change that lands on main, no matter how it gets there:
+
++--------------------------------------------------------------+-----------+
+| How the change lands on main                                 | Triggers? |
++--------------------------------------------------------------+-----------+
+| Merging a PR into main                                       | ✅ Yes    |
+| Direct git push to main (if allowed)                         | ✅ Yes    |
+| Squash-merge or rebase-merge a PR                            | ✅ Yes    |
+| A GitHub Actions bot itself pushing to main (e.g., auto-commit) | ✅ Yes |
+| Force-push to main                                           | ✅ Yes    |
++--------------------------------------------------------------+-----------+
