@@ -16,8 +16,8 @@ env:
   K8S_NAMESPACE:    default
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+  build-and-deploy:                                              // # YOU name this ✅  can be anything
+    runs-on: ubuntu-latest                                      // Linux ✅ most common
 
     steps:
 
@@ -169,3 +169,12 @@ Reasons:
    every single run ✅
 
 --------------------------------
+
+runs-on Options
+
+runs-on: ubuntu-latest   # Linux ✅ most common
+runs-on: ubuntu-22.04    # specific Ubuntu version
+runs-on: windows-latest  # Windows runner
+runs-on: macos-latest    # Mac runner
+
+
