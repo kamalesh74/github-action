@@ -285,15 +285,84 @@ Option 1: GitHub Console
   → compare: feature/login
   → Create pull request ✅
 
-Option 2: GitHub suggests
-  after push → yellow banner
-  → Compare & pull request ✅
-  → click it ✅
+Compare changes page:
+  compares two branches ✅
+  shows what changed ✅
+  allows creating PR ✅
 
-Option 3: GitHub CLI
-  gh pr create \
-    --base main \
-    --head feature/login \
-    --title "Add login feature" ✅
+How to Create PR Correctly
 
+Step 1:
+  base    : main          ← keep this
+  compare : feature/login ← change this ✅
+
+Step 2:
+  GitHub shows differences ✅
+  what files changed
+  what lines changed
+
+Step 3:
+  Click Create pull request ✅
+
+Step 4:
+  Add title and description
+  Click Create pull request ✅
+
+PR(pull request) created
+
+When Do Tests Run?
+
+AFTER PR created:
+        ↓
+GitHub Actions triggers ✅
+  (because of pull_request trigger)
+        ↓
+Pipeline runs:
+  ✅ build
+  ✅ tests
+  ✅ code quality
+        ↓
+PR shows:
+  ✅ All checks passed
+  ❌ Some checks failed
+
+Tests run:
+  ✅ AFTER PR is created
+  ✅ GitHub Actions handles
+  ✅ automatically ✅
+
+-----
+PR created
+  ↓
+GitHub Actions auto triggers ✅
+  ↓
+All steps run:
+  ✅ Build
+  ✅ Archive
+  ✅ Test
+  ✅ Publish results
+  ↓
+PR shows pass ✅ or fail ❌
+  ↓
+Pass  → merge allowed ✅
+Fail  → fix and push again ✅
+        pipeline reruns ✅
+
+After Tests Pass — Merge Flow
+
+PR created
+        ↓
+Pipeline runs ✅
+        ↓
+All tests pass ✅
+        ↓
+Reviewer reviews code ✅
+        ↓
+Click Merge button ✅
+        ↓
+feature/login merged into main ✅
+        ↓
+push trigger fires ✅
+        ↓
+Deploy pipeline runs ✅
 ------------------------------------------------
