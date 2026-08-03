@@ -126,3 +126,46 @@ jobs:
       - name: Failure Message
         if: failure()
         run: echo "Build #${{ github.run_number }} failed. Check the logs."
+
+------------------------------------------
+GitHub Actions Runner — Pre-installed Tools
+
+Ubuntu runner (ubuntu-latest):
+  ✅ Maven      → pre-installed
+  ✅ Java       → multiple versions
+  ✅ Docker     → pre-installed
+  ✅ kubectl    → pre-installed
+  ✅ AWS CLI    → pre-installed
+  ✅ Python     → pre-installed
+  ✅ Node.js    → pre-installed
+  ✅ Git        → pre-installed
+  ✅ curl/wget  → pre-installed
+
+Then Why Use setup-java?
+
+- uses: actions/setup-java@v4
+  with:
+    java-version: '17'
+    distribution: 'temurin'
+    cache: maven
+
+Reasons:
+
+1. Set SPECIFIC version ✅
+   runner has multiple Java versions
+   setup-java picks exact one
+   sets JAVA_HOME correctly ✅
+
+2. Set SPECIFIC distribution ✅
+   temurin / corretto / zulu
+   match your Dockerfile ✅
+
+3. Cache Maven deps ✅
+   most important reason!
+   speeds up builds ✅
+
+4. Version consistency ✅
+   same Java version
+   every single run ✅
+
+--------------------------------
