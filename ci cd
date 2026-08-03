@@ -4,7 +4,7 @@ on:                                 // WHEN to trigger pipeline ✅
   push:                             // trigger when code is PUSHED ✅
     branches: [ main ]              //  only trigger on MAIN branch ✅  not other branches ❌
   pull_request:
-    branches: [ main ]
+    branches: [ main ]               //  # build + test only, no deploy — catch issues pre-merge  // You write code → open PR(pull request) → build/test runs immediately on the PR → you see ❌ or ✅ before merging → THEN merge to main
 
 env:
   AWS_REGION:       us-east-2
