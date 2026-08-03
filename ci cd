@@ -177,4 +177,44 @@ runs-on: ubuntu-22.04    # specific Ubuntu version
 runs-on: windows-latest  # Windows runner
 runs-on: macos-latest    # Mac runner
 
+-------------------------------------
 
++---------+----------------+--------------------------------------------------+
+| Tool    | Needs Install? | Why                                              |
++---------+----------------+--------------------------------------------------+
+| Java    | No             | Set via runtime-versions, image has it           |
+| Maven   | No             | Bundled in CodeBuild managed image               |
+| kubectl | Yes            | Not part of the image, manually curled           |
++---------+----------------+--------------------------------------------------+
+
+Pre-installed runtimes (activated via runtime-versions, not installed):
+
+• Java (Corretto 8, 11, 17, 21...)
+• Python
+• Node.js
+• Ruby
+• PHP
+• .NET
+• Go
+• Android
+
+Bundled with Java runtime (no separate setup):
+
+• Maven ✅ (this is why your mvn clean package just worked)
+• Gradle
+• Ant
+
+Also baked into the image regardless of runtime-versions:
+
+• Git
+• Docker CLI (that's why docker build / docker push work in your buildspec)
+• AWS CLI v2
+• curl, wget, unzip, tar — standard Linux utilities
+• SSM Agent
+
+NOT included — must install yourself:
+
+• kubectl (as you saw)
+• helm
+• eksctl
+• Any niche/custom binaries
