@@ -1,8 +1,8 @@
 name: CI/CD Pipeline - Build and Deploy to EKS
 
-on:
-  push:
-    branches: [ main ]
+on:                                 // WHEN to trigger pipeline ✅
+  push:                             // trigger when code is PUSHED ✅
+    branches: [ main ]              //  only trigger on MAIN branch ✅  not other branches ❌
   pull_request:
     branches: [ main ]
 
