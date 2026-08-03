@@ -231,3 +231,69 @@ This triggers on any change that lands on main, no matter how it gets there:
 | A GitHub Actions bot itself pushing to main (e.g., auto-commit) | ✅ Yes |
 | Force-push to main                                           | ✅ Yes    |
 +--------------------------------------------------------------+-----------+
+
+-------------
+
+Pull Request ≠ git pull — Pull Request is a GitHub feature to request merging your branch into main. Pipeline triggers on PR creation and runs tests automatically 
+to catch bugs before merging! ✅
+
+Pull Request = request to merge
+               branch into main ✅
+               GitHub feature ✅
+
+pull_request trigger:
+  pipeline runs when
+  PR is created ✅
+  tests code automatically ✅
+  catches bugs before merge ✅
+  protects main branch ✅
+
+No! Developer must manually create Pull Request:
+
+Flow — Step by Step
+
+Step 1: Create branch
+  git checkout -b feature/login ✅
+
+Step 2: Make changes
+  edit code ✅
+
+Step 3: Push branch
+  git push origin feature/login ✅
+        ↓
+  code is on GitHub ✅
+  BUT no PR yet ❌
+
+Step 4: Manually create PR
+  go to GitHub.com ✅
+  click "Compare & pull request" ✅
+  OR click "New pull request" ✅
+        ↓
+  PR created ✅
+        ↓
+  pipeline triggers ✅
+
+
+How to Create PR on GitHub
+
+Option 1: GitHub Console
+  GitHub.com
+  → your repo
+  → Pull requests tab
+  → New pull request
+  → base: main
+  → compare: feature/login
+  → Create pull request ✅
+
+Option 2: GitHub suggests
+  after push → yellow banner
+  → Compare & pull request ✅
+  → click it ✅
+
+Option 3: GitHub CLI
+  gh pr create \
+    --base main \
+    --head feature/login \
+    --title "Add login feature" ✅
+
+------------------------------------------------
