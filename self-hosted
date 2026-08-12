@@ -1,0 +1,35 @@
+runs-on: docker-maven-21-arc
+
+This is a self-hosted GitHub Actions runner, not GitHub's default cloud runners (ubuntu-latest, etc.).
+
+Breaking down the label:
+
+* docker-maven-21 — runner image/label with Docker + Maven + Java 21 pre-installed
+* arc — Actions Runner Controller — GitHub's Kubernetes-based self-hosted runner solution
+
+What this means for you: This job runs as a pod inside a Kubernetes cluster (likely one of your EKS clusters or a dedicated CI/CD cluster), spun up dynamically by ARC when the workflow triggers, rather than on GitHub's hosted infra. Matches your stack on Wordplay/GlobalPay? likely runs ARC on EKS for CI/CD instead of paying for GitHub-hosted minutes, giving control over compute, network access (private ECR at 506887928038.dkr.ecr.us-east-2.amazonaws.com), and security compliance.
+-----------
+
+1 Prerequisites
+Have a running Kubernetes cluster (EKS or otherwise) with kubectl configured, and Helm 3 installed. You also need a GitHub App or a PAT (classic, with repo/admin:org scopes) for authenticating the controller with GitHub.
+
+2 Install cert-manager (if not already present)
+ARC requires cert-manager for webhook TLS certs: helm repo add jetstack https://charts.jetstack.io && helm install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set installCRDs=true
+
+3 Install the ARC controller
+helm install arc --namespace arc-systems --create-namespace oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set-controller
+
+4 Create a GitHub App (recommended over PAT)
+In your GitHub org: Settings > Developer settings > GitHub Apps > New GitHub App. Grant it Actions (read/write) and Administration (read/write) permissions, generate a private key, and install it on your org/repos. Note the App ID, Installation ID, and download the .pem key.
+
+5 Create a Kubernetes secret for GitHub auth
+kubectl create secret generic github-app-secret -n arc-systems --from-literal=github_app_id=<APP_ID> --from-literal=github_app_installation_id=<INSTALL_ID> --from-file=github_app_private_key=<path-to-pem>
+
+6 Deploy a runner scale set
+helm install docker-maven-21-arc --namespace arc-runners --create-namespace --set githubConfigUrl="https://github.com/<org>/<repo-or-org>" --set githubConfigSecret=github-app-secret oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set. This name (docker-maven-21-arc) is what you'd reference in runs-on: in your workflow YAML.
+
+7 Verify runners register
+kubectl get pods -n arc-runners to see runner pods spin up, and check GitHub repo/org Settings > Actions > Runners to confirm the runner scale set shows as online/idle.
+
+8 Customize the runner image
+To get Docker + Maven + Java 21 baked in (matching docker-maven-21-arc), build a custom runner image extending the base ghcr.io/actions/actions-runner image with Maven, JDK 21, and Docker-in-Docker support, push it to ECR, then reference it via the template.spec.containers image field in your Helm values.
