@@ -49,11 +49,11 @@ jobs:
           ENVIRONMENT: ${{ github.event.inputs.environment }}
         run: |
           case $ENVIRONMENT in
-          "prod")   echo "INGRESS=docs.worldpay.com" >> $GITHUB_ENV
+          "prod")   echo "INGRESS=docs.wor.com" >> $GITHUB_ENV
                     echo "BUILD_COMMAND=build:prod" >> $GITHUB_ENV ;;
           "cert")   echo "INGRESS=staging-docs.worldpay.com" >> $GITHUB_ENV
                     echo "BUILD_COMMAND=build:cert" >> $GITHUB_ENV ;;
-          "dev"|*)  echo "INGRESS=dev-docs.worldpay.com" >> $GITHUB_ENV
+          "dev"|*)  echo "INGRESS=dev-docs.wor.com" >> $GITHUB_ENV
                     echo "BUILD_COMMAND=build:dev" >> $GITHUB_ENV ;;
           esac
 
