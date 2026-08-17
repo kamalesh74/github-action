@@ -1,0 +1,55 @@
+No — runs-on: enterprise-runners is not an operating system. It's the label of a self-
+hosted GitHub Actions runner pool, same pattern as docker-maven-21-arc you saw
+earlier.
+
+Breaking down what's here:
+
+yaml
+
+runs-on: enterprise-runners       # ← self-hosted runner group name, not an OS
+if: github.event_name == 'repository_dispatch'   # ← only runs when triggered via API
+
+What enterprise-runners likely means:
+
+- A GitHub Enterprise-managed runner group — likely a fleet of self-hosted runners
+  (VMs or K8s pods, similar to your ARC setup) that GitHub Enterprise Cloud/Server lets
+  an org define as a shared pool across multiple repos
+- The actual OS underneath (Linux/Windows/container image) is defined wherever that
+  runner pool is provisioned — not visible in this YAML
+
+  ------------
+
+  Correct — self-hosted, not GitHub's own infrastructure.
+
+Quick recap of the two runner types:
+
+                        GitHub-hosted runners              Self-hosted runners
+------------------------------------------------------------------------------------------
+Who provisions          GitHub                              Your org (Worldpay/GlobalPayments)
+the machine
+
+Where it runs            GitHub's own cloud infra            Your own servers/K8s cluster/VMs
+
+Labels used               ubuntu-latest,                     Custom names you define —
+                          windows-latest, macos-              enterprise-runners,
+                          latest                              docker-maven-21-arc, etc.
+
+Network access            Public internet only, no access    Can sit inside your VPC — direct
+                          to your private VPC/AWS             access to private ECR, internal
+                          resources by default                APIs, AWS resources without
+                                                               exposing them publicly
+
+Cost model                 Pay per GitHub Actions             You pay for your own compute
+                          minutes                            (EC2/EKS), no per-minute GH
+                                                               charge
+
+
+Both examples you've seen so far are self-hosted:
+
+- docker-maven-21-arc → self-hosted via ARC (Actions Runner Controller) on
+  Kubernetes/EKS
+- enterprise-runners → self-hosted, likely a different runner pool — could be VM-
+  based, or a separate Enterprise-managed runner group (GitHub Enterprise Cloud has a
+  feature called "Enterprise Runner Groups" for shared self-hosted fleets across an org)
+
+  ------------------------------------------------------------------------------------------------------------------
