@@ -24,6 +24,8 @@ jobs:
       # ─── Checkout ───────────────────────────────────────────────
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed for SonarQube blame/PR decoration
 
       # ─── Java & Maven Setup ─────────────────────────────────────
       - name: Set up JDK 17
@@ -52,6 +54,51 @@ jobs:
         if: always()
         with:
           report_paths: target/surefire-reports/*.xml
+
+      # ─── SonarQube SAST ─────────────────────────────────────────
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@v3
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: SonarQube Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # ─── Snyk SCA + SAST ────────────────────────────────────────
+      - name: Setup Snyk CLI
+        uses: snyk/actions/setup@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk SCA — dependency scan (pom.xml)
+        run: |
+          mkdir -p snyk-reports
+          snyk test --all-projects --json-file-output=snyk-reports/sca-result.json
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk SAST — source code scan
+        run: snyk code test --json-file-output=snyk-reports/sast-result.json
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Convert Snyk JSON to HTML
+        run: |
+          npm install -g snyk-to-html
+          snyk-to-html -i snyk-reports/sca-result.json -o snyk-reports/index.html
+
+      - name: Publish Snyk Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snyk-report
+          path: snyk-reports/index.html
 
       # ─── AWS Credentials ────────────────────────────────────────
       - name: Configure AWS Credentials
