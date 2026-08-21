@@ -1,0 +1,18 @@
+Snyk (pronounced "sneak") is a developer-security platform that scans your code,
+dependencies, containers, and IaC for known vulnerabilities.
+
+Key pieces:
+
+Component                         What it scans
+
+Snyk Open Source                  Vulnerable dependencies (npm, maven, pip, etc.)
+Snyk Code                          Static analysis of your own source code (SAST)
+Snyk Container                     Docker/OCI images for CVEs in base layers
+Snyk IaC                           Terraform, K8s manifests, CloudFormation misconfigs
+
+It integrates into CI/CD (Jenkins, GitHub Actions) and fails builds on policy violations — this is
+likely why it's in your Worldpay security stack alongside SonarQube (code quality) and Sysdig
+(runtime/container security).
+
+Two-line interview answer: "Snyk is a shift-left security tool that scans code, open-source dependencies, containers, and IaC for vulnerabilities, integrated directly into the CI/CD pipeline to block insecure builds before deployment."
+
